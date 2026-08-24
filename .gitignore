@@ -1,0 +1,8 @@
+venv/
+output/
+taxonomy/
+Spotify Extended Streaming History/
+__pycache__/
+*.pyc
+*:Zone.Identifier
+.DS_Store
