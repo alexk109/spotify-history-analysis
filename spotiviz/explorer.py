@@ -166,7 +166,7 @@ function fmtH(m){const h=m/60;return h>=100?Math.round(h).toLocaleString()+" h":
 function barL(labels){let m=0;labels.forEach(l=>{const n=String(l).length;if(n>m)m=n});return Math.min(250,24+m*6.4)}
 function lay(h,extra){return Object.assign({height:h,margin:{l:56,r:14,t:26,b:40},paper_bgcolor:"rgba(0,0,0,0)",plot_bgcolor:"rgba(0,0,0,0)",font:{color:MUT,size:12},xaxis:{gridcolor:GRID,zeroline:false},yaxis:{gridcolor:GRID,zeroline:false}},extra||{})}
 function barlay(labels,h,extra){return lay(h,Object.assign({margin:{l:barL(labels),r:14,t:26,b:40},yaxis:{gridcolor:"rgba(0,0,0,0)",tickfont:{size:11.5}}},extra||{}))}
-function draw(id,data,layout,onClick,onRelayout){const gd=$(id);if(!gd)return;if(gd.removeAllListeners){gd.removeAllListeners("plotly_click");gd.removeAllListeners("plotly_relayout")}Plotly.react(gd,data,layout,{displayModeBar:false,responsive:true});if(onClick)gd.on("plotly_click",ev=>{const p=ev.points[0];if(p&&p.customdata!==undefined&&p.customdata!==null)onClick(p.customdata)});if(onRelayout)gd.on("plotly_relayout",onRelayout)}
+function draw(id,data,layout,onClick,onRelayout){const gd=$(id);if(!gd)return;if(gd.removeAllListeners){gd.removeAllListeners("plotly_click");gd.removeAllListeners("plotly_relayout")}Plotly.react(gd,data,layout,{displayModeBar:false,responsive:true});if(onClick)gd.on("plotly_click",ev=>{const p=ev.points[0];if(!p)return;onClick(p.customdata,p)});if(onRelayout)gd.on("plotly_relayout",onRelayout)}
 function findEntity(code){const [kind,idx]=code.split(":");return {kind:kind==="A"?"artists":"tracks",rec:D[kind==="A"?"artists":"tracks"][+idx]}}
 function entitySubtitle(kind,rec){const ac=D.artistCell[rec.n],tc=kind==="tracks"?D.trackCell[rec.a+"|||"+rec.n]:null;
 const badge=ac?' · <span style="color:var(--green);font-weight:700">'+ac.m+"/"+ac.s+"</span> ("+ac.c+") · "+ac.g:(tc?' · <span style="color:var(--green);font-weight:700">'+tc[0]+"/"+tc[1]+"</span>":"");
@@ -174,6 +174,7 @@ return (kind==="tracks"?"by "+rec.a+(rec.al?" · "+rec.al:""):"artist")+badge}
 function kpiHTML(items){return '<div class="kpis">'+items.map(i=>'<div class="kpi"><div class="v">'+i[1]+'</div><div class="l">'+i[0]+"</div></div>").join("")+"</div>"}
 function monthsInFilter(){return Object.keys(D.monthly).filter(m=>inYears(+m.slice(0,4))).sort()}
 function inYears(y){return state.years.has(+y)}
+function sumDict(o){let s=0;for(const k in o)if(inYears(k))s+=o[k];return s}
 """
 
 EXPLORER_HTML = r"""<!doctype html>
@@ -312,7 +313,7 @@ else{for(let d=0;d<7;d++){z[d]=[];for(let h=0;h<24;h++)z[d][h]=+(D.years.reduce(
 const traces=[{z:z,x:[...Array(24).keys()],y:DAYS,type:"heatmap",colorscale:"Greens",hovertemplate:"%{y} %{x}:00 — %{z:.1f} h<extra></extra>",colorbar:{thickness:10}}];
 if(state.hour)traces.push({x:[state.hour.h],y:[DAYS[state.hour.dow]],type:"scatter",mode:"markers",marker:{size:34,color:"rgba(0,0,0,0)",line:{color:"#fff",width:3}},hoverinfo:"skip"});
 draw("heat",traces,lay(280,{margin:{l:56,r:14,t:26,b:40},yaxis:{autorange:"reversed",gridcolor:"rgba(0,0,0,0)"},xaxis:{gridcolor:"rgba(0,0,0,0)",dtick:2}}),
-ev=>{const p=ev.points[0];if(!p||p.x===undefined)return;const h=+p.x,dow=DAYS.indexOf(p.y);
+(cd,pt)=>{if(!pt)return;const h=+pt.x,dow=DAYS.indexOf(pt.y);
 if(state.hour&&state.hour.h===h&&state.hour.dow===dow)state.hour=null;else state.hour={dow:dow,h:h};refreshData()},
 null)}
 const GENRE_COLORS=["#1DB954","#7c4dff","#ff8a3d","#2196f3","#f573a0","#ffc107"];
@@ -325,7 +326,7 @@ draw("genres",[{x:rows.map(r=>+(r.v/60).toFixed(1)),y:labels,type:"bar",orientat
 barlay(labels,560,{xaxis:{title:"hours in selected period",gridcolor:GRID}}),(cd)=>renderGenreArtists(cd[0]));
 const top6=Object.entries(tags).map(([g,t])=>({g:g,v:t.v,y:t.years})).sort((a,b)=>b.v-a.v).slice(0,6);
 const ys=Object.keys(D.monthly).filter(monthInFilter).sort();
-const traces=top6.map((t,i)=>({x:ys,y:ys.map(k=>+((t.years[k]||0)/60).toFixed(2)),type:"scatter",mode:"lines",stackgroup:"one",name:t.g,line:{width:2,color:GENRE_COLORS[i%6]},hovertemplate:t.g+": %{y} h<extra></extra>"}));
+const traces=top6.map((t,i)=>({x:ys,y:ys.map(k=>+((t.y[k]||0)/60).toFixed(2)),type:"scatter",mode:"lines",stackgroup:"one",name:t.g,line:{width:2,color:GENRE_COLORS[i%6]},hovertemplate:t.g+": %{y} h<extra></extra>"}));
 draw("genretime",traces,lay(560,{yaxis:{gridcolor:GRID,title:"hours"},xaxis:{type:"date",gridcolor:GRID},legend:{orientation:"h",y:-0.12}}))}
 function renderGenreArtists(tag){const rows=Object.entries(D.artistCell).filter(([,ac])=>ac.g&&ac.g.split(",").map(s=>s.trim()).includes(tag)).map(([a,ac])=>({a:a,v:Object.keys(ac.mo).filter(monthInFilter).reduce((s,k)=>s+ac.mo[k],0)})).filter(r=>r.v>0).sort((a,b)=>a.v-b.v).slice(-12);
 const labels=rows.map(r=>r.a);

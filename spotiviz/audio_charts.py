@@ -71,6 +71,7 @@ def chart_top_artists(df, out, n=20):
     a = df.groupby("artist")["minutes"].sum().sort_values(ascending=False).head(n)
     fig, ax = plt.subplots(figsize=(9, 7))
     _barh_top(ax, a, f"Top {n} artists of all time")
+    finish(fig, out)
 
 
 def chart_top_tracks(df, out, n=20):
@@ -79,6 +80,7 @@ def chart_top_tracks(df, out, n=20):
     s = pd.Series(t.values, index=labels)
     fig, ax = plt.subplots(figsize=(10, 7))
     _barh_top(ax, s, f"Top {n} tracks of all time", color="#169c46")
+    finish(fig, out)
 
 
 def chart_top_albums(df, out, n=15):
@@ -87,6 +89,7 @@ def chart_top_albums(df, out, n=15):
     s = pd.Series(al.values, index=labels)
     fig, ax = plt.subplots(figsize=(10, 6))
     _barh_top(ax, s, f"Top {n} albums of all time", color="#0e6b31")
+    finish(fig, out)
 
 
 def chart_yearly_artists(df, out, n=8):
