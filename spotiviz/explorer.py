@@ -279,11 +279,7 @@ const parts=[];if(state.range){const d1=new Date(DAY0+state.range[0]*86400000),d
 if(state.hour)parts.push(DAYS[state.hour.dow]+" "+state.hour.h+":00");
 items.push(["period",parts.join(" · ")]);
 $("kpis").innerHTML=kpiHTML(items)}
-function renderTimeline(){const days=Object.keys(D.daily).map(Number).filter(dayInFilter).sort((a,b)=>a-b);
-draw("tl",[{x:days.map(d=>new Date(DAY0+d*86400000)),y:days.map(d=>+(D.daily[d]/60).toFixed(2)),type:"scatter",mode:"lines",fill:"tozeroy",line:{color:GREEN,width:1},fillcolor:"rgba(29,185,84,.18)"}],
-lay(320,{xaxis:{gridcolor:GRID,type:"date",rangeslider:{visible:true}},yaxis:{gridcolor:GRID,title:"hours / day"},height:380}),
-null,
-ev=>{const nested=ev.xaxis||null;
+function tlRelayout(ev){const nested=ev.xaxis||null;
 const r=nested&&nested.range?nested.range:(ev["xaxis.range"]?ev["xaxis.range"]:(ev["xaxis.range[0]"]!==undefined?[ev["xaxis.range[0]"],ev["xaxis.range[1]"]]:null));
 const auto=(nested&&nested.autorange)||ev["xaxis.autorange"];
 if(auto){if(state.range){state.range=null;refreshData()}return}
@@ -291,7 +287,14 @@ if(!r)return;
 const dns=Object.keys(D.daily).map(Number);const mn=Math.min(...dns),mx=Math.max(...dns);
 const d1=Math.floor((new Date(r[0]).getTime()-DAY0)/86400000),d2=Math.ceil((new Date(r[1]).getTime()-DAY0)/86400000);
 if(d1<=mn&&d2>=mx){if(state.range){state.range=null;refreshData()}}
-else{state.range=[Math.max(mn,d1),Math.min(mx,d2)];refreshData()}})}
+else{state.range=[Math.max(mn,d1),Math.min(mx,d2)];refreshData()}}
+function renderTimeline(){const days=Object.keys(D.daily).map(Number).filter(dayInFilter).sort((a,b)=>a-b);
+const xaxis={gridcolor:GRID,type:"date",rangeslider:{visible:true}};
+if(state.hour){const pts=days.filter(d=>{const dow=(new Date(DAY0+d*86400000).getDay()+6)%7;return dow===state.hour.dow}).map(d=>({d:d,v:(D.dailyHours[String(d)]||[])[state.hour.h]||0}));
+draw("tl",[{x:pts.map(p=>new Date(DAY0+p.d*86400000)),y:pts.map(p=>+p.v.toFixed(1)),type:"scatter",mode:"markers",marker:{color:GREEN,size:5,opacity:.7},hovertemplate:"%{x|%b %d, %Y} — %{y} min at "+DAYS[state.hour.dow]+" "+state.hour.h+":00<extra></extra>"}],
+lay(320,{xaxis:xaxis,yaxis:{gridcolor:GRID,title:"min at "+DAYS[state.hour.dow]+" "+state.hour.h+":00"},height:380}),null,tlRelayout);return}
+draw("tl",[{x:days.map(d=>new Date(DAY0+d*86400000)),y:days.map(d=>+(D.daily[d]/60).toFixed(2)),type:"scatter",mode:"lines",fill:"tozeroy",line:{color:GREEN,width:1},fillcolor:"rgba(29,185,84,.18)"}],
+lay(320,{xaxis:xaxis,yaxis:{gridcolor:GRID,title:"hours / day"},height:380}),null,tlRelayout)}
 function entityMinutes(e){if(state.hour){const idx=state.hour.dow*24+state.hour.h;return e.hx?e.hx[idx]:0}
 let s=0;for(const k in e.m)if(monthInFilter(k))s+=e.m[k];return s}
 function renderTop(kind,div){const list=D[kind];
@@ -318,7 +321,7 @@ if(state.hour)traces.push({x:[state.hour.h],y:[DAYS[state.hour.dow]],type:"scatt
 draw("heat",traces,lay(280,{margin:{l:56,r:14,t:26,b:40},yaxis:{autorange:"reversed",gridcolor:"rgba(0,0,0,0)"},xaxis:{gridcolor:"rgba(0,0,0,0)",dtick:2}}),
 (cd,pt)=>{if(!pt)return;const h=+pt.x,dow=DAYS.indexOf(pt.y);
 if(state.hour&&state.hour.h===h&&state.hour.dow===dow)state.hour=null;else state.hour={dow:dow,h:h};
-refreshData();$("kpis").scrollIntoView({behavior:"smooth",block:"start"})},
+refreshData();renderTimeline();$("kpis").scrollIntoView({behavior:"smooth",block:"start"})},
 null)}
 const GENRE_COLORS=["#1DB954","#7c4dff","#ff8a3d","#2196f3","#f573a0","#ffc107"];
 function genreAgg(){const tags={};for(const a in D.artistCell){const ac=D.artistCell[a];if(!ac.g||ac.g==="unknown")continue;
